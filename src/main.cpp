@@ -155,6 +155,7 @@ int main()
             window.mouseDY();
         }
         camera.onScroll(window.scrollDY());
+        camera.update(dt);
 
         // Physics step
         if (!paused) {
@@ -162,10 +163,10 @@ int main()
         }
 
         // Render
-        glClearColor(0.08f, 0.08f, 0.10f, 1.f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         glEnable(GL_DEPTH_TEST);
 
+        renderer.setTime(timer.elapsed());
         renderer.beginFrame(camera, window.aspect());
         renderer.drawWorld(world, showContacts, showVelocities, showAABBs);
         renderer.endFrame();

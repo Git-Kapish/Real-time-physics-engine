@@ -14,6 +14,9 @@ Camera::Camera(Vec3 target, float distance, float yaw, float pitch)
     , distance_(distance)
     , yaw_(yaw)
     , pitch_(pitch)
+    , smoothYaw_(yaw)
+    , smoothPitch_(pitch)
+    , smoothDist_(distance)
     , defaultTarget_(target)
     , defaultDistance_(distance)
     , defaultYaw_(yaw)
@@ -47,23 +50,34 @@ void Camera::onResize(int /*w*/, int /*h*/) {
 }
 
 void Camera::reset() {
-    target_   = defaultTarget_;
-    distance_ = defaultDistance_;
-    yaw_      = defaultYaw_;
-    pitch_    = defaultPitch_;
+    target_      = defaultTarget_;
+    distance_    = defaultDistance_;
+    yaw_         = defaultYaw_;
+    pitch_       = defaultPitch_;
+    smoothYaw_   = defaultYaw_;
+    smoothPitch_ = defaultPitch_;
+    smoothDist_  = defaultDistance_;
+}
+
+void Camera::update(float dt) {
+    // Exponential-decay smoothing — framerate-independent
+    const float a = 1.f - std::exp(-smoothK_ * dt);
+    smoothYaw_   += (yaw_      - smoothYaw_)   * a;
+    smoothPitch_ += (pitch_    - smoothPitch_) * a;
+    smoothDist_  += (distance_ - smoothDist_)  * a;
 }
 
 Vec3 Camera::computePosition() const {
-    const float pitchRad = pitch_ * static_cast<float>(M_PI) / 180.f;
-    const float yawRad   = yaw_   * static_cast<float>(M_PI) / 180.f;
+    const float pitchRad = smoothPitch_ * static_cast<float>(M_PI) / 180.f;
+    const float yawRad   = smoothYaw_   * static_cast<float>(M_PI) / 180.f;
     const float cosPitch = std::cos(pitchRad);
     const float sinPitch = std::sin(pitchRad);
     const float cosYaw   = std::cos(yawRad);
     const float sinYaw   = std::sin(yawRad);
     return target_ + Vec3(
-        distance_ * cosPitch * cosYaw,
-        distance_ * sinPitch,
-        distance_ * cosPitch * sinYaw
+        smoothDist_ * cosPitch * cosYaw,
+        smoothDist_ * sinPitch,
+        smoothDist_ * cosPitch * sinYaw
     );
 }
 

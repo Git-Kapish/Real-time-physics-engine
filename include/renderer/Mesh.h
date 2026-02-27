@@ -78,6 +78,10 @@ public:
     /// 10×10 flat grid in the XZ plane from -1 to +1 (scale by 50 for a 50-unit plane).
     static Mesh makePlaneGrid();
 
+    /// Full-screen quad in NDC [-1,1]x[-1,1], z=0.  Used for background gradient.
+    /// Draw with depth-test OFF so it never occludes geometry.
+    static Mesh makeFullscreenQuad();
+
 private:
     unsigned int vao_        = 0;
     unsigned int vbo_        = 0;

@@ -49,6 +49,13 @@ public:
     /// Notify the camera of a viewport resize (stored for future use).
     void onResize(int w, int h);
 
+    /**
+     * Advance the smooth-camera interpolation.
+     * Call once per frame with the frame delta-time before beginFrame().
+     * Without this the camera snaps instead of easing.
+     */
+    void update(float dt);
+
     // ── Accessors / mutators ──────────────────────────────────────────────
 
     Vec3  position()  const { return computePosition(); }
@@ -63,13 +70,19 @@ public:
 private:
     Vec3  target_    = {0.f, 0.f, 0.f};
     float distance_  = 15.f;
-    float yaw_       = 45.f;   ///< degrees
-    float pitch_     = 30.f;   ///< degrees, clamped to [-89, 89]
+    float yaw_       = 45.f;   ///< target degrees
+    float pitch_     = 30.f;   ///< target degrees, clamped to [-89, 89]
     float fovY_      = 60.f;   ///< degrees
     float nearPlane_ = 0.1f;
     float farPlane_  = 500.f;
     float sensitivity_ = 0.3f;
     float zoomSpeed_   = 1.0f;
+
+    /// Smoothed values (lag behind the targets, updated by update()).
+    float smoothYaw_   = 45.f;
+    float smoothPitch_ = 30.f;
+    float smoothDist_  = 15.f;
+    float smoothK_     = 16.f; ///< Smoothing speed (higher = snappier)
 
     /// Default values (used by reset()).
     Vec3  defaultTarget_   = {0.f, 0.f, 0.f};
@@ -77,7 +90,7 @@ private:
     float defaultYaw_      = 45.f;
     float defaultPitch_    = 30.f;
 
-    /// Compute the eye position from spherical coordinates.
+    /// Compute the eye position from smoothed spherical coordinates.
     Vec3 computePosition() const;
 };
 

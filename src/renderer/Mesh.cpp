@@ -216,4 +216,18 @@ Mesh Mesh::makePlaneGrid() {
     return m;
 }
 
+Mesh Mesh::makeFullscreenQuad() {
+    // Two triangles covering the entire NDC clip square
+    const std::vector<Vertex> verts = {
+        {{ -1.f, -1.f, 0.f }},
+        {{  1.f, -1.f, 0.f }},
+        {{  1.f,  1.f, 0.f }},
+        {{ -1.f,  1.f, 0.f }},
+    };
+    const std::vector<unsigned int> indices = { 0u, 1u, 2u,  0u, 2u, 3u };
+    Mesh m;
+    m.upload(verts, indices, GL_TRIANGLES);
+    return m;
+}
+
 } // namespace renderer

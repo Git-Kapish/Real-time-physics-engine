@@ -25,44 +25,48 @@ using physics::AABB;
  * !!  init() MUST be called after creating the GL context (gladLoadGL()) !!
  *
  * Typical frame:
+ *   renderer.setTime(timer.elapsed());
  *   renderer.beginFrame(camera, window.aspect());
  *   renderer.drawWorld(world, showContacts, showVelocities, showAABBs);
  *   renderer.endFrame();
  *
- * Colour scheme:
- *   Dynamic   (0.85, 0.85, 0.85)  near-white
- *   Static    (0.80, 0.25, 0.25)  red
- *   Kinematic (0.25, 0.55, 0.85)  blue
- *   Contact   (1.00, 0.85, 0.00)  yellow point
- *   Normal    (1.00, 0.50, 0.00)  orange line
- *   Velocity  (0.30, 0.90, 0.40)  green line
- *   AABB      (0.40, 0.40, 0.90)  muted blue, alpha 0.3
+ * Visual features:
+ *   - Gradient background (deep space blue/purple)
+ *   - Per-body unique hue (golden-ratio color cycling for dynamic bodies)
+ *   - Static bodies: warm red, Kinematic: cyan
+ *   - Multi-layer contact glow (3 overlapping point halos: yellow/white core)
+ *   - Velocity vectors color-coded by speed (green->yellow->red)
+ *   - Ground plane grid: X-axis red, Z-axis blue, grid dim gray
+ *   - World-origin axis cross (XYZ = R/G/B)
+ *   - Thicker line widths for better visibility
+ *   - AABB overlay with subtle transparency
  */
 class DebugRenderer {
 public:
     DebugRenderer()  = default;
     ~DebugRenderer() = default;
 
-    // Non-copyable
     DebugRenderer(const DebugRenderer&)            = delete;
     DebugRenderer& operator=(const DebugRenderer&) = delete;
 
     /**
      * Compile shaders and build GPU meshes.
-     * Must be called once, after the OpenGL context is current.
-     * @return true on success.
+     * Must be called once after the OpenGL context is current.
      */
     bool init();
 
-    /// Explicitly release all GL resources (also happens in destructors).
+    /// Release all GL resources.
     void shutdown();
 
     // ── Per-frame API ──────────────────────────────────────────────────────
 
-    /// Cache the current view/projection matrices.  Call before any draw*.
+    /// Update the internal time (seconds since app start) for animated effects.
+    void setTime(float t) { time_ = t; }
+
+    /// Draw gradient background + cache view/proj matrices. Call first each frame.
     void beginFrame(const Camera& cam, float aspect);
 
-    /// Restore default GL state.  Call after all draw* calls.
+    /// Restore default GL state. Call after all draw* calls.
     void endFrame();
 
     // ── Draw calls ─────────────────────────────────────────────────────────
@@ -72,34 +76,39 @@ public:
     void drawVelocity(const RigidBody&       body);
     void drawAABB    (const AABB& aabb, const Vec3& color);
 
-    /**
-     * Convenience: iterate all bodies and contacts in a PhysicsWorld.
-     * @param showContacts    Draw yellow dots + orange normals.
-     * @param showVelocities  Draw green velocity vectors.
-     * @param showAABBs       Draw muted-blue AABB overlays.
-     */
     void drawWorld(const PhysicsWorld& world,
                    bool showContacts,
                    bool showVelocities,
                    bool showAABBs);
 
 private:
-    Shader shader_;
-    Mesh   sphereMesh_;
-    Mesh   boxMesh_;
-    Mesh   lineMesh_;
-    Mesh   pointMesh_;
-    Mesh   planeMesh_;
+    // ── Shaders ───────────────────────────────────────────────────────────
+    Shader shader_;    ///< Main 3-D debug shader (MVP + color + alpha)
+    Shader bgShader_;  ///< Screen-space gradient background shader
 
-    Mat4   view_ = Mat4::identity();
-    Mat4   proj_ = Mat4::identity();
+    // ── Meshes ────────────────────────────────────────────────────────────
+    Mesh sphereMesh_;
+    Mesh boxMesh_;
+    Mesh lineMesh_;
+    Mesh pointMesh_;
+    Mesh planeMesh_;
+    Mesh bgMesh_;      ///< Full-screen quad for gradient background
 
-    /// Draw a mesh with a full transform, colour, alpha and polygon mode.
+    // ── Frame state ───────────────────────────────────────────────────────
+    Mat4  view_ = Mat4::identity();
+    Mat4  proj_ = Mat4::identity();
+    float time_ = 0.f;
+
+    // ── Private helpers ───────────────────────────────────────────────────
+
     void drawMesh(const Mesh&  mesh,
                   const Mat4&  model,
                   const Vec3&  color,
                   float        alpha    = 1.f,
                   unsigned int polyMode = 0x1B01 /* GL_LINE */);
+
+    void drawBackground();
+    void drawWorldAxes();
 };
 
 } // namespace renderer
