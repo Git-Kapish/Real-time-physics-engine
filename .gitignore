@@ -29,3 +29,4 @@ Makefile
 # Logs
 *.log
 build_log.txt
+configure_log.txt
