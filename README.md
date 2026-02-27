@@ -8,14 +8,6 @@
 
 ---
 
-## 🎬 Demo
-
-[![Demo](media/demo_thumbnail.png)](media/demo.mp4)
-
-*34 dynamic bodies — 20 spheres + 8 boxes — simulated and rendered at 60+ FPS*
-
----
-
 ## 🏗️ Architecture
 
 ```
