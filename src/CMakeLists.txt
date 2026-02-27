@@ -2,6 +2,7 @@ add_library(physics_engine_lib STATIC
     physics/RigidBody.cpp
     physics/PhysicsWorld.cpp
     physics/CollisionDetector.cpp
+    physics/ImpulseSolver.cpp
 )
 
 target_include_directories(physics_engine_lib PUBLIC

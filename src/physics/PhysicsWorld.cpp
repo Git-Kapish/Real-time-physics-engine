@@ -77,7 +77,7 @@ void PhysicsWorld::step() {
         body.updateInertiaTensor();
     }
 
-    // 5. Collision detection — broad phase then narrow phase (contacts stored for Phase 4)
+    // 5. Collision detection — broad phase then narrow phase
     lastContacts_.clear();
     const auto pairs = CollisionDetector::broadPhase(bodies_);
     for (const auto& [i, j] : pairs) {
@@ -87,7 +87,10 @@ void PhysicsWorld::step() {
         }
     }
 
-    // 6. Reset accumulators for next step
+    // 6. Impulse resolution: normal + friction + Baumgarte correction
+    solver_.solve(lastContacts_, config_.fixedDt);
+
+    // 7. Reset accumulators for next step
     clearAllForces();
 
     ++stepCount_;

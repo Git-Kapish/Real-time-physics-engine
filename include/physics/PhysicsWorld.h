@@ -4,6 +4,7 @@
 
 #include "physics/RigidBody.h"
 #include "physics/ContactManifold.h"
+#include "physics/ImpulseSolver.h"
 #include <vector>
 #include <cstdint>
 
@@ -62,13 +63,20 @@ public:
     /// Read-only access to contacts detected in the last step.
     const std::vector<ContactManifold>& lastContacts() const { return lastContacts_; }
 
+    /// Mutable access to the impulse solver (to adjust SolverConfig at runtime).
+    ImpulseSolver& solver() { return solver_; }
+
+    /// Read-only access to the impulse solver.
+    const ImpulseSolver& solver() const { return solver_; }
+
 private:
-    std::vector<RigidBody>      bodies_;       ///< All bodies in the world
-    PhysicsConfig               config_;       ///< Simulation parameters
-    float                       accumulator_ = 0.0f; ///< Leftover dt from variable-timestep updates
-    uint64_t                    stepCount_   = 0;     ///< Number of step() calls so far
-    int                         nextId_      = 0;      ///< Counter for assigning unique IDs
-    std::vector<ContactManifold> lastContacts_;        ///< Contacts from the last step()
+    std::vector<RigidBody>       bodies_;       ///< All bodies in the world
+    PhysicsConfig                config_;       ///< Simulation parameters
+    float                        accumulator_ = 0.0f;
+    uint64_t                     stepCount_   = 0;
+    int                          nextId_      = 0;
+    std::vector<ContactManifold> lastContacts_;         ///< Contacts from the last step()
+    ImpulseSolver                solver_;               ///< Velocity + position solver
 
     // ── Internal integration steps ────────────────────────────────────────
 
