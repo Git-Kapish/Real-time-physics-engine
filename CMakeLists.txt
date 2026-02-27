@@ -15,7 +15,7 @@ endif()
 
 # ── Per-configuration flags ────────────────────────────────────────────────
 set(CMAKE_CXX_FLAGS_RELEASE "-O3")
-set(CMAKE_CXX_FLAGS_DEBUG   "-g -O0")
+set(CMAKE_CXX_FLAGS_DEBUG "-g -O0")
 
 # ── Header-only math library (interface target) ───────────────────────────
 add_library(math_lib INTERFACE)
@@ -26,11 +26,14 @@ include(FetchContent)
 FetchContent_Declare(
     googletest
     GIT_REPOSITORY https://github.com/google/googletest.git
-    GIT_TAG        v1.14.0
+    GIT_TAG v1.14.0
 )
 # Prevent GoogleTest from overriding our compiler/linker settings on Windows
 set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(googletest)
+
+# ── Physics engine static library ────────────────────────────────────────
+add_subdirectory(src)
 
 # ── Tests ─────────────────────────────────────────────────────────────────
 enable_testing()
