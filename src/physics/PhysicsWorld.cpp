@@ -2,6 +2,7 @@
 /// @brief Physics world: fixed-timestep simulation loop with semi-implicit Euler.
 
 #include "physics/PhysicsWorld.h"
+#include "physics/CollisionDetector.h"
 #include <algorithm>
 #include <cassert>
 
@@ -76,7 +77,17 @@ void PhysicsWorld::step() {
         body.updateInertiaTensor();
     }
 
-    // 5. Reset accumulators for next step
+    // 5. Collision detection — broad phase then narrow phase (contacts stored for Phase 4)
+    lastContacts_.clear();
+    const auto pairs = CollisionDetector::broadPhase(bodies_);
+    for (const auto& [i, j] : pairs) {
+        auto contact = CollisionDetector::detect(bodies_[i], bodies_[j]);
+        if (contact.has_value()) {
+            lastContacts_.push_back(std::move(*contact));
+        }
+    }
+
+    // 6. Reset accumulators for next step
     clearAllForces();
 
     ++stepCount_;

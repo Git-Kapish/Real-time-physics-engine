@@ -3,6 +3,7 @@
 /// @brief Fixed-timestep physics world managing rigid body simulation.
 
 #include "physics/RigidBody.h"
+#include "physics/ContactManifold.h"
 #include <vector>
 #include <cstdint>
 
@@ -58,12 +59,16 @@ public:
     /// Read-only access to the current configuration.
     const PhysicsConfig& config() const { return config_; }
 
+    /// Read-only access to contacts detected in the last step.
+    const std::vector<ContactManifold>& lastContacts() const { return lastContacts_; }
+
 private:
-    std::vector<RigidBody> bodies_;    ///< All bodies in the world
-    PhysicsConfig          config_;    ///< Simulation parameters
-    float                  accumulator_ = 0.0f; ///< Leftover dt from variable-timestep updates
-    uint64_t               stepCount_  = 0;     ///< Number of step() calls so far
-    int                    nextId_     = 0;      ///< Counter for assigning unique IDs
+    std::vector<RigidBody>      bodies_;       ///< All bodies in the world
+    PhysicsConfig               config_;       ///< Simulation parameters
+    float                       accumulator_ = 0.0f; ///< Leftover dt from variable-timestep updates
+    uint64_t                    stepCount_   = 0;     ///< Number of step() calls so far
+    int                         nextId_      = 0;      ///< Counter for assigning unique IDs
+    std::vector<ContactManifold> lastContacts_;        ///< Contacts from the last step()
 
     // ── Internal integration steps ────────────────────────────────────────
 
