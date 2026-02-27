@@ -2,6 +2,7 @@
 /// @brief Broad-phase filtering and narrow-phase collision tests for all shape pairs.
 
 #include "physics/CollisionDetector.h"
+#include "physics/BVHTree.h"
 #include <cmath>
 #include <algorithm>
 #include <cassert>
@@ -53,6 +54,21 @@ CollisionDetector::broadPhase(const std::vector<RigidBody>& bodies) {
             }
         }
     }
+    return pairs;
+}
+
+// ── BVH broad phase ───────────────────────────────────────────────────────
+
+std::vector<std::pair<int, int>>
+CollisionDetector::broadPhase(const BVHTree& bvh, const std::vector<RigidBody>& bodies) {
+    auto pairs = bvh.queryAllPairs();
+    // Filter out static-static pairs (bodyIndex is the body's array index)
+    pairs.erase(
+        std::remove_if(pairs.begin(), pairs.end(),
+            [&bodies](const std::pair<int,int>& p) {
+                return bodies[p.first].isStatic() && bodies[p.second].isStatic();
+            }),
+        pairs.end());
     return pairs;
 }
 

@@ -5,6 +5,7 @@
 #include "physics/RigidBody.h"
 #include "physics/ContactManifold.h"
 #include "physics/ImpulseSolver.h"
+#include "physics/BVHTree.h"
 #include <vector>
 #include <cstdint>
 
@@ -69,6 +70,15 @@ public:
     /// Read-only access to the impulse solver.
     const ImpulseSolver& solver() const { return solver_; }
 
+    /// Mutable access to the BVH tree.
+    BVHTree& bvh() { return bvh_; }
+
+    /// Read-only access to the BVH tree.
+    const BVHTree& bvh() const { return bvh_; }
+
+    /// Enable or disable the BVH broad phase (falls back to O(n²) brute force).
+    void setUseBVH(bool use) { useBVH_ = use; }
+
 private:
     std::vector<RigidBody>       bodies_;       ///< All bodies in the world
     PhysicsConfig                config_;       ///< Simulation parameters
@@ -77,6 +87,8 @@ private:
     int                          nextId_      = 0;
     std::vector<ContactManifold> lastContacts_;         ///< Contacts from the last step()
     ImpulseSolver                solver_;               ///< Velocity + position solver
+    BVHTree                      bvh_;          ///< Dynamic AABB BVH for broad phase
+    bool                         useBVH_ = true; ///< Use BVH (false = O(n²) fallback)
 
     // ── Internal integration steps ────────────────────────────────────────
 

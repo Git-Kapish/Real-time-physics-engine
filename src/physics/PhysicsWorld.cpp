@@ -17,24 +17,34 @@ int PhysicsWorld::addBody(RigidBody body) {
     assert(static_cast<int>(bodies_.size()) < config_.maxBodies
            && "PhysicsWorld: maxBodies limit reached");
     body.id = nextId_++;
-    // Initialise world-space inertia tensor
     body.updateInertiaTensor();
     bodies_.push_back(std::move(body));
+    // Insert into BVH (use array index as bodyIndex for O(1) pair lookup)
+    const int idx = static_cast<int>(bodies_.size()) - 1;
+    bvh_.insert(idx, CollisionDetector::computeAABB(bodies_.back()));
     return bodies_.back().id;
 }
 
 void PhysicsWorld::removeBody(int id) {
-    // Swap-and-pop to keep the vector dense
     for (std::size_t i = 0; i < bodies_.size(); ++i) {
         if (bodies_[i].id == id) {
+            // Remove from BVH before modifying the array
+            bvh_.remove(static_cast<int>(i));
             if (i != bodies_.size() - 1) {
+                // The last body is about to move to slot i
+                // Update BVH: remove last body's old index, reinsert at new index i
+                const int lastIdx = static_cast<int>(bodies_.size()) - 1;
+                bvh_.remove(lastIdx);
                 bodies_[i] = std::move(bodies_.back());
+                bodies_.pop_back();
+                bvh_.insert(static_cast<int>(i),
+                            CollisionDetector::computeAABB(bodies_[i]));
+            } else {
+                bodies_.pop_back();
             }
-            bodies_.pop_back();
             return;
         }
     }
-    // id not found — no-op
 }
 
 RigidBody* PhysicsWorld::getBody(int id) {
@@ -77,9 +87,20 @@ void PhysicsWorld::step() {
         body.updateInertiaTensor();
     }
 
-    // 5. Collision detection — broad phase then narrow phase
+    // 5. Update BVH for all dynamic bodies that may have moved
+    if (useBVH_) {
+        for (int i = 0; i < static_cast<int>(bodies_.size()); ++i) {
+            if (bodies_[i].isDynamic()) {
+                bvh_.update(i, CollisionDetector::computeAABB(bodies_[i]));
+            }
+        }
+    }
+
+    // 6. Broad phase
     lastContacts_.clear();
-    const auto pairs = CollisionDetector::broadPhase(bodies_);
+    const auto pairs = useBVH_
+        ? CollisionDetector::broadPhase(bvh_, bodies_)
+        : CollisionDetector::broadPhase(bodies_);
     for (const auto& [i, j] : pairs) {
         auto contact = CollisionDetector::detect(bodies_[i], bodies_[j]);
         if (contact.has_value()) {
@@ -87,10 +108,10 @@ void PhysicsWorld::step() {
         }
     }
 
-    // 6. Impulse resolution: normal + friction + Baumgarte correction
+    // 7. Impulse resolution: normal + friction + Baumgarte correction
     solver_.solve(lastContacts_, config_.fixedDt);
 
-    // 7. Reset accumulators for next step
+    // 8. Reset accumulators for next step
     clearAllForces();
 
     ++stepCount_;

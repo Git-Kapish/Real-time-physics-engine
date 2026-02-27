@@ -5,6 +5,7 @@
 #include "physics/RigidBody.h"
 #include "physics/AABB.h"
 #include "physics/ContactManifold.h"
+#include "physics/BVHTree.h"
 #include <optional>
 #include <vector>
 #include <utility>
@@ -18,9 +19,13 @@ public:
 
     // ── Broad phase ───────────────────────────────────────────────────────
 
-    /// Return index pairs whose AABBs overlap (skips static-static pairs).
+    /// O(n²) broad phase: return index pairs whose AABBs overlap (skips static-static).
     static std::vector<std::pair<int, int>>
         broadPhase(const std::vector<RigidBody>& bodies);
+
+    /// BVH broad phase: query the tree for overlapping pairs (skips static-static).
+    static std::vector<std::pair<int, int>>
+        broadPhase(const BVHTree& bvh, const std::vector<RigidBody>& bodies);
 
     /// Compute the world-space AABB for any body shape.
     static AABB computeAABB(const RigidBody& body);
