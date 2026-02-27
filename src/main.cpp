@@ -2,16 +2,16 @@
 /// @brief Phase 6 demo: OpenGL debug renderer driving the complete physics engine.
 ///
 /// Controls
-/// ────────
-///   SPACE  — pause / resume
-///   R      — reset scene
-///   G      — toggle gravity
-///   C      — toggle contact visualisation
-///   V      — toggle velocity vectors
-///   B      — toggle AABB overlay
-///   ESC    — quit
-///   Mouse drag  — orbit camera
-///   Scroll      — zoom in / out
+/// --------
+///   SPACE  - pause / resume
+///   R      - reset scene
+///   G      - toggle gravity
+///   C      - toggle contact visualisation
+///   V      - toggle velocity vectors
+///   B      - toggle AABB overlay
+///   ESC    - quit
+///   Mouse drag  - orbit camera
+///   Scroll      - zoom in / out
 
 #include "core/Window.h"
 #include "core/Timer.h"
@@ -89,17 +89,17 @@ static void resetScene(PhysicsWorld& world) {
 int main()
 {
     std::cout <<
-        "Physics Engine — Debug Renderer\n"
+        "Physics Engine - Debug Renderer\n"
         "Controls:\n"
-        "  SPACE  — pause/resume\n"
-        "  R      — reset scene\n"
-        "  G      — toggle gravity\n"
-        "  C      — toggle contact visualisation\n"
-        "  V      — toggle velocity vectors\n"
-        "  B      — toggle AABB overlay\n"
-        "  ESC    — quit\n"
-        "  Mouse drag  — orbit camera\n"
-        "  Scroll      — zoom in/out\n"
+        "  SPACE  - pause/resume\n"
+        "  R      - reset scene\n"
+        "  G      - toggle gravity\n"
+        "  C      - toggle contact visualisation\n"
+        "  V      - toggle velocity vectors\n"
+        "  B      - toggle AABB overlay\n"
+        "  ESC    - quit\n"
+        "  Mouse drag  - orbit camera\n"
+        "  Scroll      - zoom in/out\n"
         "\n";
 
     // ── Create window + GL context ────────────────────────────────────────
