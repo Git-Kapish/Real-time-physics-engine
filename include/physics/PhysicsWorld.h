@@ -61,6 +61,9 @@ public:
     /// Read-only access to the current configuration.
     const PhysicsConfig& config() const { return config_; }
 
+    /// Mutable access to the current configuration (e.g. to toggle gravity at runtime).
+    PhysicsConfig& config() { return config_; }
+
     /// Read-only access to contacts detected in the last step.
     const std::vector<ContactManifold>& lastContacts() const { return lastContacts_; }
 
