@@ -1,0 +1,52 @@
+name: Build & Test
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  build-and-test:
+    name: Ubuntu 22.04 — GCC 12
+    runs-on: ubuntu-22.04
+
+    steps:
+      # ── 1. Checkout ───────────────────────────────────────────────────
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # ── 2. Install system dependencies ───────────────────────────────
+      - name: Install dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends \
+            cmake \
+            ninja-build \
+            g++-12 \
+            libglfw3-dev \
+            libgl1-mesa-dev \
+            libglu1-mesa-dev \
+            xvfb
+
+      # ── 3. Configure (tests only — skip the renderer executable) ─────
+      #    The renderer requires a real display; tests are fully headless.
+      - name: Configure CMake
+        run: |
+          cmake -B build \
+            -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_CXX_COMPILER=g++-12 \
+            -DCMAKE_C_COMPILER=gcc-12
+
+      # ── 4. Build everything (lib + tests + benchmark) ─────────────────
+      - name: Build
+        run: cmake --build build --target all -j$(nproc)
+
+      # ── 5. Run tests ──────────────────────────────────────────────────
+      - name: Run tests
+        run: ctest --test-dir build --output-on-failure --parallel $(nproc)
+
+      # ── 6. Run benchmark (informational, never fails the build) ───────
+      - name: Run benchmark
+        run: ./build/physics_benchmark || true
