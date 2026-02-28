@@ -169,7 +169,7 @@ The engine runs live at **<https://git-kapish.github.io/Real-time-physics-engine
 $env:PATH = "C:\emsdk;C:\emsdk\upstream\emscripten;" + $env:PATH
 
 # Configure + build
-emcmake cmake physics_engine -B build_wasm -DCMAKE_BUILD_TYPE=Release
+emcmake cmake . -B build_wasm -DCMAKE_BUILD_TYPE=Release
 cmake --build build_wasm --target physics_engine_wasm -j4
 
 # Serve (requires emrun from emsdk)
