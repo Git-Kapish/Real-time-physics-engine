@@ -9,7 +9,6 @@
 > A from-scratch rigid body physics engine in C++17 — custom quaternion integration, SAH-guided BVH broadphase, impulse-based collision resolution with Coulomb friction, and a live OpenGL 3.3 debug renderer. **Zero external physics or math libraries.**
 >
 > 🌐 **[Live browser demo](https://git-kapish.github.io/Real-time-physics-engine/)** — compiled to WebAssembly via Emscripten, runs entirely in-browser with WebGL 2.
-
 ---
 ## 🏗️ Architecture
 
