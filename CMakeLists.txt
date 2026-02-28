@@ -25,80 +25,85 @@ set(CMAKE_CXX_FLAGS_DEBUG "-g -O0")
 add_library(math_lib INTERFACE)
 target_include_directories(math_lib INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/include)
 
-# ── OpenGL + GLFW ─────────────────────────────────────────────────────────
-# Add the MSYS2/MinGW prefix so find_package locates the system packages
-# when building from a plain Windows terminal.
-if(WIN32)
-    list(APPEND CMAKE_PREFIX_PATH "C:/msys64/mingw64")
-endif()
-
-find_package(OpenGL REQUIRED)
-find_package(glfw3  CONFIG REQUIRED)
-
-# ── GLAD (vendored, compiled as a plain C static library) ────────────────
-add_library(glad STATIC
-    ${CMAKE_CURRENT_SOURCE_DIR}/external/glad/src/glad.c
-)
-target_include_directories(glad PUBLIC
-    ${CMAKE_CURRENT_SOURCE_DIR}/external/glad/include
-)
-target_link_libraries(glad PRIVATE OpenGL::GL)
-# glad.c uses glfwGetProcAddress, so it needs the GLFW headers
-target_link_libraries(glad PRIVATE glfw)
-
-# ── Google Test via FetchContent ──────────────────────────────────────────
-include(FetchContent)
-FetchContent_Declare(
-    googletest
-    GIT_REPOSITORY https://github.com/google/googletest.git
-    GIT_TAG v1.14.0
-)
-# Prevent GoogleTest from overriding our compiler/linker settings on Windows
-set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
-FetchContent_MakeAvailable(googletest)
-
-# ── Physics engine static library ────────────────────────────────────────
+# ── Physics engine static library (needed by both native and WASM) ───────
 add_subdirectory(src)
 
-# ── Tests ─────────────────────────────────────────────────────────────────
-enable_testing()
-add_subdirectory(tests)
+if(NOT EMSCRIPTEN)
+    # ── OpenGL + GLFW ─────────────────────────────────────────────────────
+    # Add the MSYS2/MinGW prefix so find_package locates the system packages
+    # when building from a plain Windows terminal.
+    if(WIN32)
+        list(APPEND CMAKE_PREFIX_PATH "C:/msys64/mingw64")
+    endif()
 
-# ── Physics engine executable (renderer + demo) ──────────────────────────
-add_executable(physics_engine
-    src/main.cpp
-    src/renderer/Shader.cpp
-    src/renderer/Mesh.cpp
-    src/renderer/DebugRenderer.cpp
-    src/renderer/Camera.cpp
-    src/core/Window.cpp
-    src/core/Timer.cpp
-)
+    find_package(OpenGL REQUIRED)
+    find_package(glfw3  CONFIG REQUIRED)
 
-target_include_directories(physics_engine PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}/include
-    ${CMAKE_CURRENT_SOURCE_DIR}/external/glad/include
-)
+    # ── GLAD (vendored, compiled as a plain C static library) ─────────────
+    add_library(glad STATIC
+        ${CMAKE_CURRENT_SOURCE_DIR}/external/glad/src/glad.c
+    )
+    target_include_directories(glad PUBLIC
+        ${CMAKE_CURRENT_SOURCE_DIR}/external/glad/include
+    )
+    target_link_libraries(glad PRIVATE OpenGL::GL)
+    target_link_libraries(glad PRIVATE glfw)
 
-target_link_libraries(physics_engine PRIVATE
-    physics_engine_lib
-    glad
-    glfw
-    OpenGL::GL
-    ${CMAKE_DL_LIBS}
-)
+    # ── Google Test via FetchContent ───────────────────────────────────────
+    include(FetchContent)
+    FetchContent_Declare(
+        googletest
+        GIT_REPOSITORY https://github.com/google/googletest.git
+        GIT_TAG v1.14.0
+    )
+    set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+    FetchContent_MakeAvailable(googletest)
 
-target_compile_features(physics_engine PRIVATE cxx_std_17)
+    # ── Tests ──────────────────────────────────────────────────────────────
+    enable_testing()
+    add_subdirectory(tests)
 
-# ── Copy shaders next to the executable ──────────────────────────────────
-# The exe lands in <binary_dir>/ so shaders go there too.
-configure_file(
-    ${CMAKE_CURRENT_SOURCE_DIR}/shaders/debug.vert
-    ${CMAKE_CURRENT_BINARY_DIR}/shaders/debug.vert
-    COPYONLY
-)
-configure_file(
-    ${CMAKE_CURRENT_SOURCE_DIR}/shaders/debug.frag
-    ${CMAKE_CURRENT_BINARY_DIR}/shaders/debug.frag
-    COPYONLY
-)
+    # ── Native executable (renderer + demo) ───────────────────────────────
+    add_executable(physics_engine
+        src/main.cpp
+        src/renderer/Shader.cpp
+        src/renderer/Mesh.cpp
+        src/renderer/DebugRenderer.cpp
+        src/renderer/Camera.cpp
+        src/core/Window.cpp
+        src/core/Timer.cpp
+    )
+
+    target_include_directories(physics_engine PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/include
+        ${CMAKE_CURRENT_SOURCE_DIR}/external/glad/include
+    )
+
+    target_link_libraries(physics_engine PRIVATE
+        physics_engine_lib
+        glad
+        glfw
+        OpenGL::GL
+        ${CMAKE_DL_LIBS}
+    )
+
+    target_compile_features(physics_engine PRIVATE cxx_std_17)
+
+    # ── Copy shaders next to the executable ───────────────────────────────
+    configure_file(
+        ${CMAKE_CURRENT_SOURCE_DIR}/shaders/debug.vert
+        ${CMAKE_CURRENT_BINARY_DIR}/shaders/debug.vert
+        COPYONLY
+    )
+    configure_file(
+        ${CMAKE_CURRENT_SOURCE_DIR}/shaders/debug.frag
+        ${CMAKE_CURRENT_BINARY_DIR}/shaders/debug.frag
+        COPYONLY
+    )
+endif()
+
+# ── WebAssembly / Emscripten build ─────────────────────────────────────────
+# Activated when:  emcmake cmake <source_dir> -B build_wasm ...
+if(EMSCRIPTEN)
+    add_subdirectory(web)
+endif()

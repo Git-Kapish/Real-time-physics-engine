@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Real-Time Physics Engine — WebAssembly Demo</title>
+<style>
+/* ── Reset & base ─────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  width: 100%; height: 100%;
+  overflow: hidden;
+  background: #10091e;
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  color: #d8d4f0;
+}
+
+/* ── Canvas fills the full viewport ──────────────────────────────────── */
+#canvas {
+  display: block;
+  width: 100vw;
+  height: 100vh;
+  touch-action: none;   /* prevents scroll-cancel during orbit drag */
+  cursor: crosshair;
+}
+
+/* ── Overlay container ────────────────────────────────────────────────── */
+.overlay {
+  position: fixed;
+  pointer-events: none;   /* pass clicks through to canvas by default */
+  z-index: 10;
+}
+
+/* ── Control panel ────────────────────────────────────────────────────── */
+#controls {
+  top: 16px; left: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  pointer-events: all;
+  width: 160px;
+}
+
+.panel-title {
+  font-size: 11px;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: #8880b0;
+  padding: 0 4px 4px;
+  border-bottom: 1px solid #2a244a;
+}
+
+.btn {
+  background: rgba(30, 22, 60, 0.82);
+  border: 1px solid #3a2e6a;
+  color: #c8c0e8;
+  padding: 7px 12px;
+  font-size: 12px;
+  border-radius: 5px;
+  cursor: pointer;
+  text-align: left;
+  transition: background .12s, border-color .12s, color .12s;
+  letter-spacing: .04em;
+  backdrop-filter: blur(6px);
+}
+.btn:hover  { background: rgba(60, 50, 120, 0.85); border-color: #7060cc; color: #fff; }
+.btn:active { background: rgba(80, 68, 155, 0.9); }
+.btn.active { border-color: #a090ff; color: #c8baff; }
+.btn.on     { border-color: #50e080; color: #80ffb0; }
+.btn.off    { border-color: #ff5050; color: #ff9090; }
+
+.divider {
+  height: 1px;
+  background: #2a244a;
+  margin: 2px 0;
+}
+
+/* ── Stats panel ──────────────────────────────────────────────────────── */
+#stats {
+  top: 16px; right: 16px;
+  width: 178px;
+  background: rgba(14, 10, 34, 0.78);
+  border: 1px solid #2a244a;
+  border-radius: 7px;
+  padding: 10px 12px;
+  backdrop-filter: blur(8px);
+  font-size: 12px;
+  line-height: 1.9;
+}
+
+#stats .label { color: #7870a8; font-size: 10px; letter-spacing:.1em; text-transform:uppercase; }
+#stats .value { color: #d8d0ff; font-weight: 600; font-size: 13px; }
+#stats .bar-bg {
+  height: 3px;
+  background: #1e1840;
+  border-radius: 2px;
+  margin: 3px 0 6px;
+  overflow: hidden;
+}
+#stats .bar-fill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width .25s, background .25s;
+}
+
+/* ── Help hint ────────────────────────────────────────────────────────── */
+#hint {
+  bottom: 14px; left: 50%;
+  transform: translateX(-50%);
+  background: rgba(14,10,34,.7);
+  border: 1px solid #2a244a;
+  padding: 6px 18px;
+  border-radius: 20px;
+  font-size: 11px;
+  color: #6860a0;
+  white-space: nowrap;
+  pointer-events: none;
+  backdrop-filter: blur(6px);
+}
+
+/* ── Loading screen ───────────────────────────────────────────────────── */
+#loader {
+  position: fixed;
+  inset: 0;
+  background: #10091e;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  z-index: 100;
+  transition: opacity .4s;
+}
+#loader h1 { font-size: 20px; color: #9888e0; letter-spacing: .1em; }
+#loader p  { font-size: 13px; color: #6060a0; }
+
+.spinner {
+  width: 40px; height: 40px;
+  border: 3px solid #2a2050;
+  border-top-color: #8870e0;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+
+<!-- ── Loading overlay ─────────────────────────────────────────────────────── -->
+<div id="loader">
+  <div class="spinner"></div>
+  <h1>Physics Engine</h1>
+  <p id="loader-status">Loading WebAssembly module…</p>
+</div>
+
+<!-- ── WebGL canvas ────────────────────────────────────────────────────────── -->
+<canvas id="canvas"></canvas>
+
+<!-- ── Controls ────────────────────────────────────────────────────────────── -->
+<div id="controls" class="overlay">
+  <div class="panel-title">Physics Engine</div>
+
+  <button class="btn" id="btn-box"    onclick="spawnBox()">⬜ Spawn Box</button>
+  <button class="btn" id="btn-sphere" onclick="spawnSphere()">⚪ Spawn Sphere</button>
+
+  <div class="divider"></div>
+
+  <button class="btn" id="btn-pause"   onclick="togglePause()">⏸ Pause</button>
+  <button class="btn" id="btn-step"    onclick="singleStep()">⏭ Step Once</button>
+  <button class="btn" id="btn-reset"   onclick="resetScene()">↺ Reset</button>
+
+  <div class="divider"></div>
+
+  <button class="btn on"  id="btn-gravity"    onclick="toggleGravity()">↓ Gravity: ON</button>
+  <button class="btn"     id="btn-contacts"   onclick="toggleContacts()">◉ Contacts</button>
+  <button class="btn"     id="btn-velocities" onclick="toggleVelocities()">→ Velocities</button>
+  <button class="btn"     id="btn-aabbs"      onclick="toggleAABBs()">▭ AABBs</button>
+</div>
+
+<!-- ── Stats ───────────────────────────────────────────────────────────────── -->
+<div id="stats" class="overlay">
+  <div class="label">FPS</div>
+  <div class="value" id="stat-fps">—</div>
+  <div class="bar-bg"><div class="bar-fill" id="bar-fps" style="width:0%;background:#60e090"></div></div>
+
+  <div class="label">Bodies</div>
+  <div class="value" id="stat-bodies">—</div>
+  <div class="bar-bg"><div class="bar-fill" id="bar-bodies" style="width:0%;background:#7080ff"></div></div>
+
+  <div class="label">Contacts</div>
+  <div class="value" id="stat-contacts">—</div>
+  <div class="bar-bg"><div class="bar-fill" id="bar-contacts" style="width:0%;background:#ff9040"></div></div>
+
+  <div class="label">Steps</div>
+  <div class="value" id="stat-steps">—</div>
+</div>
+
+<!-- ── Hint bar ─────────────────────────────────────────────────────────────→ -->
+<div id="hint" class="overlay">
+  Drag to orbit  ·  Scroll to zoom  ·  Use the panel to interact
+</div>
+
+<script>
+'use strict';
+
+// ── Module reference (populated once WASM is ready) ──────────────────────────
+let M = null;
+
+// ── Button-state flags (mirrors C++ globals) ─────────────────────────────────
+const state = {
+  paused:     false,
+  gravity:    true,
+  contacts:   true,
+  velocities: false,
+  aabbs:      false,
+};
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function toggleBtn(id, active, labelOn, labelOff) {
+  const el = document.getElementById(id);
+  el.classList.toggle('active', active);
+  if (labelOn)  el.textContent = active ? labelOn : labelOff;
+}
+
+// ── Control callbacks (wired to HTML onclick) ─────────────────────────────────
+function spawnBox()    { if (M) M.spawnRandomBox();    }
+function spawnSphere() { if (M) M.spawnRandomSphere(); }
+
+function togglePause() {
+  if (!M) return;
+  state.paused = !state.paused;
+  M.setPaused(state.paused);
+  const btn = document.getElementById('btn-pause');
+  btn.textContent = state.paused ? '▶ Resume' : '⏸ Pause';
+  btn.classList.toggle('active', state.paused);
+}
+
+function singleStep() {
+  if (!M) return;
+  // Step one fixed frame even while paused
+  const wasPaused = state.paused;
+  if (!wasPaused) M.setPaused(true);
+  M.step(1 / 60);
+  if (!wasPaused) M.setPaused(false);
+}
+
+function resetScene() {
+  if (!M) return;
+  M.reset();
+  // Reset local state to defaults
+  state.paused = false; document.getElementById('btn-pause').textContent = '⏸ Pause';
+  document.getElementById('btn-pause').classList.remove('active');
+  state.gravity = true;
+  document.getElementById('btn-gravity').textContent = '↓ Gravity: ON';
+  document.getElementById('btn-gravity').className = 'btn on';
+}
+
+function toggleGravity() {
+  if (!M) return;
+  state.gravity = !state.gravity;
+  M.toggleGravity();
+  const btn = document.getElementById('btn-gravity');
+  btn.textContent = state.gravity ? '↓ Gravity: ON' : '↑ Gravity: OFF';
+  btn.className   = state.gravity ? 'btn on' : 'btn off';
+}
+
+function toggleContacts() {
+  if (!M) return;
+  state.contacts = !state.contacts;
+  M.setShowContacts(state.contacts);
+  document.getElementById('btn-contacts').classList.toggle('active', state.contacts);
+}
+
+function toggleVelocities() {
+  if (!M) return;
+  state.velocities = !state.velocities;
+  M.setShowVelocities(state.velocities);
+  document.getElementById('btn-velocities').classList.toggle('active', state.velocities);
+}
+
+function toggleAABBs() {
+  if (!M) return;
+  state.aabbs = !state.aabbs;
+  M.setShowAABBs(state.aabbs);
+  document.getElementById('btn-aabbs').classList.toggle('active', state.aabbs);
+}
+
+// ── Stats ticker (60 Hz via requestAnimationFrame) ────────────────────────────
+;(function statsLoop() {
+  if (M) {
+    const fps      = M.getFPS();
+    const bodies   = M.getBodyCount();
+    const contacts = M.getContactCount();
+    const steps    = M.getStepCount();
+
+    document.getElementById('stat-fps').textContent      = fps.toFixed(1);
+    document.getElementById('stat-bodies').textContent   = bodies;
+    document.getElementById('stat-contacts').textContent = contacts;
+    document.getElementById('stat-steps').textContent    = Number(steps).toLocaleString();
+
+    // Colour FPS bar: green≥55, yellow≥30, red<30
+    const fpsBar   = document.getElementById('bar-fps');
+    const fpsPct   = Math.min(fps / 60, 1) * 100;
+    fpsBar.style.width      = fpsPct + '%';
+    fpsBar.style.background = fps >= 55 ? '#50e070' : fps >= 30 ? '#e0c040' : '#e05040';
+
+    document.getElementById('bar-bodies').style.width   = Math.min(bodies / 500, 1) * 100 + '%';
+    document.getElementById('bar-contacts').style.width = Math.min(contacts / 200, 1) * 100 + '%';
+  }
+  requestAnimationFrame(statsLoop);
+})();
+
+// ── Responsive canvas sizing ──────────────────────────────────────────────────
+function resizeCanvas() {
+  const canvas = document.getElementById('canvas');
+  const dpr    = window.devicePixelRatio || 1;
+  const w      = Math.floor(window.innerWidth  * dpr);
+  const h      = Math.floor(window.innerHeight * dpr);
+  canvas.width  = w;
+  canvas.height = h;
+  canvas.style.width  = window.innerWidth  + 'px';
+  canvas.style.height = window.innerHeight + 'px';
+}
+resizeCanvas();
+window.addEventListener('resize', resizeCanvas);
+
+// ── Prevent context menu on right-click ───────────────────────────────────────
+document.getElementById('canvas').addEventListener('contextmenu', e => e.preventDefault());
+
+// ── Load the Emscripten module ────────────────────────────────────────────────
+document.getElementById('loader-status').textContent = 'Compiling shaders & uploading geometry…';
+
+// physics_engine.js is generated by Emscripten's --bind build.
+// It exports a factory function named PhysicsEngine (matching -sEXPORT_NAME).
+const script = document.createElement('script');
+script.src = 'physics_engine.js';
+script.onload = function () {
+  PhysicsEngine().then(function (module) {
+    M = module;
+    // Hide loader with a fade
+    const loader = document.getElementById('loader');
+    loader.style.opacity = '0';
+    setTimeout(() => loader.remove(), 450);
+
+    // Sync initial UI state (contacts are ON by default in C++)
+    document.getElementById('btn-contacts').classList.add('active');
+  }).catch(function (err) {
+    document.getElementById('loader-status').textContent = 'Error: ' + err.message;
+    console.error(err);
+  });
+};
+script.onerror = function () {
+  document.getElementById('loader-status').textContent =
+    'Failed to load physics_engine.js — run via emrun or a local HTTP server.';
+};
+document.body.appendChild(script);
+</script>
+</body>
+</html>
