@@ -1,10 +1,14 @@
 # ⚙️ Real-Time Physics Engine
 
 [![Build & Test](https://github.com/Git-Kapish/Real-time-physics-engine/actions/workflows/ci.yml/badge.svg)](https://github.com/Git-Kapish/Real-time-physics-engine/actions/workflows/ci.yml)
+[![Deploy to Pages](https://github.com/Git-Kapish/Real-time-physics-engine/actions/workflows/deploy.yml/badge.svg)](https://github.com/Git-Kapish/Real-time-physics-engine/actions/workflows/deploy.yml)
 ![C++17](https://img.shields.io/badge/C%2B%2B-17-blue.svg)
+[![WebAssembly](https://img.shields.io/badge/WebAssembly-654FF0?logo=webassembly&logoColor=white)](https://git-kapish.github.io/Real-time-physics-engine/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-yellow.svg)](LICENSE)
 
 > A from-scratch rigid body physics engine in C++17 — custom quaternion integration, SAH-guided BVH broadphase, impulse-based collision resolution with Coulomb friction, and a live OpenGL 3.3 debug renderer. **Zero external physics or math libraries.**
+>
+> 🌐 **[Live browser demo](https://git-kapish.github.io/Real-time-physics-engine/)** — compiled to WebAssembly via Emscripten, runs entirely in-browser with WebGL 2.
 
 ---
 ## 🏗️ Architecture
@@ -95,6 +99,7 @@ Five narrow-phase shape pairs, all returning a `ContactManifold`:
 | 500        | 0.2055                | 0.0765        | 2.7×    |
 | 1 000      | 0.6659                | 0.1236        | 5.4×    |
 
+---
 ### Phase 6 — OpenGL Debug Renderer
 
 - **OpenGL 3.3 Core Profile** via a vendored minimal GLAD loader (no external headers)
@@ -106,7 +111,17 @@ Five narrow-phase shape pairs, all returning a `ContactManifold`:
 - **Speed-tinted velocity arrows**: green → yellow → red, scaled to magnitude
 - **World-origin XYZ axis widget** always visible
 - **Smooth orbit camera** with exponential-decay interpolation `1 − e^(−kt)`
+---
+### Phase 7 — WebAssembly / Browser Port
 
+- Full physics engine compiled to **WebAssembly** via **Emscripten 3.x**
+- **WebGL 2.0 / GLSL ES 3.0** renderer — wireframe geometry built with `GL_LINES` (no `glPolygonMode`); shaders embedded as string literals
+- **Animated deep-space gradient** background matching the native renderer aesthetic
+- **Orbit camera** driven by HTML5 mouse/wheel callbacks (`emscripten_set_mouse*_callback`)
+- **JS bindings via Embind**: `addBox`, `addSphere`, `spawnRandomBox/Sphere`, `setGravity`, `toggleGravity`, `step`, `reset`, `setPaused`, `getBodyCount`, `getContactCount`, `getFPS`, `getBodyTransforms`
+- Modularised output (`-sMODULARIZE=1 -sEXPORT_NAME=PhysicsEngine`) — no global namespace pollution
+- Interactive HTML shell with spawn controls, pause/step/reset, gravity toggle, visualisation toggles, live FPS + bodies + contacts stats
+- CI/CD: GitHub Actions builds WASM on every push and deploys to **GitHub Pages** automatically
 ---
 
 ## 🎮 Demo Scene & Controls
@@ -129,6 +144,39 @@ The built-in demo spawns **34 bodies** inside a walled arena:
 | `V` | Toggle velocity arrows |
 | `B` | Toggle AABB overlay |
 | `ESC` | Quit |
+
+---
+
+## 🌐 Browser Demo
+
+The engine runs live at **<https://git-kapish.github.io/Real-time-physics-engine/>**.
+
+| Control | Action |
+|---------|--------|
+| Left-drag canvas | Orbit camera |
+| Scroll wheel | Zoom in / out |
+| Spawn Box / Spawn Sphere | Add a rigid body |
+| Pause / Step Once | Freeze or single-step the simulation |
+| Reset | Restore the default scene |
+| Gravity / Contacts / Velocities / AABBs | Toggle visualisation layers |
+
+### Build the WASM target locally
+
+**Extra prerequisites:** [Emscripten SDK](https://emscripten.org/docs/getting_started/downloads.html) (emsdk), activated in your shell.
+
+```bash
+# Activate emsdk (PowerShell — one-time per session)
+$env:PATH = "C:\emsdk;C:\emsdk\upstream\emscripten;" + $env:PATH
+
+# Configure + build
+emcmake cmake physics_engine -B build_wasm -DCMAKE_BUILD_TYPE=Release
+cmake --build build_wasm --target physics_engine_wasm -j4
+
+# Serve (requires emrun from emsdk)
+emrun --port 8080 build_wasm/web/index.html
+```
+
+Outputs: `build_wasm/web/physics_engine.js`, `physics_engine.wasm`, `index.html`.
 
 ---
 
@@ -212,7 +260,17 @@ Real-time-physics-engine/
 │   ├── renderer/       # Shader, Mesh, Camera, DebugRenderer
 │   ├── core/           # Window, Timer
 │   ├── benchmark.cpp   # BVH vs brute-force timing
-│   └── main.cpp        # Demo entry point
+│   └── main.cpp        # Native demo entry point
+├── web/                # WebAssembly / browser port
+│   ├── main_wasm.cpp   # Emscripten entry point + Embind JS bindings
+│   ├── WebGLRenderer.h # WebGL 2 renderer header
+│   ├── WebGLRenderer.cpp
+│   ├── index.html      # Interactive HTML shell
+│   └── CMakeLists.txt
+├── docs/               # Pre-built WASM artifacts (served by GitHub Pages)
+│   ├── index.html
+│   ├── physics_engine.js
+│   └── physics_engine.wasm
 ├── tests/              # 125 GoogleTest cases (5 suites)
 ├── external/
 │   └── glad/           # Vendored minimal OpenGL 3.3 loader
@@ -228,9 +286,10 @@ Real-time-physics-engine/
 
 | Library | How included | Why |
 |---------|-------------|-----|
-| [GLFW 3](https://www.glfw.org/) | System package (`find_package`) | Window + input |
-| [GLAD](https://glad.dav1d.de/) | Vendored in `external/glad/` | OpenGL 3.3 loader |
-| [GoogleTest v1.14](https://github.com/google/googletest) | Auto-fetched via `FetchContent` | Unit tests |
+| [GLFW 3](https://www.glfw.org/) | System package (`find_package`) | Window + input (native only) |
+| [GLAD](https://glad.dav1d.de/) | Vendored in `external/glad/` | OpenGL 3.3 loader (native only) |
+| [GoogleTest v1.14](https://github.com/google/googletest) | Auto-fetched via `FetchContent` | Unit tests (native only) |
+| [Emscripten](https://emscripten.org/) | External toolchain (`emcmake`) | WASM + WebGL 2 compilation |
 
 **No external physics or math libraries.** Every vector, matrix, quaternion, collision algorithm, constraint solver, and BVH structure is original code.
 
